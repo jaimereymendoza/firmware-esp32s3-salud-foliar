@@ -44,6 +44,7 @@
 #endif
 
 #include <memory>
+#include <new>
 
 #include "edge-impulse-sdk/dsp/ei_utils.h"
 #include "edge-impulse-sdk/dsp/image/image.hpp"
@@ -118,16 +119,16 @@ static bool ei_camera_take_snapshot_encode_and_output_no_init(size_t width, size
     // if the camera driver does not make it possible
     // then create our own second framebuffer
     uint8_t* image = nullptr;
+    // declared outside the if: the buffer must live until the end of the function,
+    // otherwise `image` would point to freed memory
+    std::unique_ptr<uint8_t[]> image_p;
     if (!camera->get_fb_ptr(&image)) {
-        std::unique_ptr<uint8_t[]> image_p(new uint8_t[size]);
+        image_p.reset(new (std::nothrow) uint8_t[size]);
         if (!image_p) {
             ei_printf("ERR: Cannot allocate memory for framebuffer\n");
             return false;
         }
         image = image_p.get();
-    }
-    else {
-        camera->get_fb_ptr(&image);
     }
 
 #endif

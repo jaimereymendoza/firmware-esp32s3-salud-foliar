@@ -34,6 +34,7 @@
 
 /* Include ----------------------------------------------------------------- */
 #include "driver/gpio.h"
+#include "esp_rom_gpio.h"
 #include "sdkconfig.h"
 #include "esp_idf_version.h"
 
@@ -48,8 +49,9 @@
 #include "ei_analogsensor.h"
 #include "ei_inertial_sensor.h"
 
-#define RED_LED_PIN GPIO_NUM_21
-#define WHITE_LED_PIN GPIO_NUM_22
+// En ESP32-S3 los pines válidos van de 0-21 y de 26-48 (GPIO 22 no existe en el SoC)
+#define RED_LED_PIN   GPIO_NUM_21
+#define WHITE_LED_PIN GPIO_NUM_2    // Se asigna un GPIO válido de la ESP32-S3
 
 EiDeviceInfo *EiDevInfo = dynamic_cast<EiDeviceInfo *>(EiDeviceESP32::get_device());
 static ATServer *at;
@@ -60,8 +62,8 @@ static ATServer *at;
 
 void setup_led() {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-    esp_rom_gpio_pad_select_gpio(RED_LED_PIN);
-    esp_rom_gpio_pad_select_gpio(WHITE_LED_PIN);
+    gpio_reset_pin(RED_LED_PIN);
+    gpio_reset_pin(WHITE_LED_PIN);
 #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
     gpio_pad_select_gpio(RED_LED_PIN);
     gpio_pad_select_gpio(WHITE_LED_PIN);

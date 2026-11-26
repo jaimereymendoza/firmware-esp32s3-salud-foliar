@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.13.1)
 
-set (CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
+
+add_compile_definitions(EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN=1 EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN_S3=1 EIDSP_USE_ESP_DSP=1)
+
+list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/edge-impulse-sdk/porting/espressif/ESP-NN")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(ei_firmware_esp32)

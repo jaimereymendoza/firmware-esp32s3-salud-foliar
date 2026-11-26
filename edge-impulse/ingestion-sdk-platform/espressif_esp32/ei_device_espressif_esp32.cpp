@@ -54,9 +54,9 @@
 
 /* Constants --------------------------------------------------------------- */
 #define EI_RED_LED_OFF      gpio_set_level(GPIO_NUM_21, 0);
-#define EI_WHITE_LED_OFF    gpio_set_level(GPIO_NUM_22, 0);
+#define EI_WHITE_LED_OFF    gpio_set_level(GPIO_NUM_2, 0);
 #define EI_RED_LED_ON     gpio_set_level(GPIO_NUM_21, 1);
-#define EI_WHITE_LED_ON    gpio_set_level(GPIO_NUM_22, 1);
+#define EI_WHITE_LED_ON    gpio_set_level(GPIO_NUM_2, 1);
 
 /** Global objects */
 TimerHandle_t fusion_timer;
@@ -273,14 +273,14 @@ void EiDeviceESP32::set_default_data_output_baudrate(void)
 {
     fflush(stdout);
     ei_sleep(10);
-    esp_err_t ret = uart_set_baudrate(0, DEFAULT_BAUD);
+    esp_err_t ret = uart_set_baudrate(UART_NUM_0, DEFAULT_BAUD);
 }
 
 void EiDeviceESP32::set_max_data_output_baudrate(void)
 {
     fflush(stdout);
     ei_sleep(10);
-    esp_err_t ret = uart_set_baudrate(0, MAX_BAUD);
+    esp_err_t ret = uart_set_baudrate(UART_NUM_0, MAX_BAUD);
 }
 
 /**
@@ -294,7 +294,7 @@ bool EiDeviceESP32::start_sample_thread(void (*sample_read_cb)(void), float samp
     sample_cb_ptr = sample_read_cb;
     fusion_timer = xTimerCreate(
                         "Fusion sampler",
-                        (uint32_t)sample_interval_ms / portTICK_RATE_MS,
+                        (uint32_t)sample_interval_ms / portTICK_PERIOD_MS,
                         pdTRUE,
                         (void *) 0,
                         vTimerCallback

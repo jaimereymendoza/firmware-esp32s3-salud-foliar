@@ -1,0 +1,9 @@
+# Archivos de compilación (se regeneran con idf.py build)
+build/
+managed_components/
+sdkconfig.old
+
+# Archivos del sistema y editores
+.vscode/
+.DS_Store
+Thumbs.db

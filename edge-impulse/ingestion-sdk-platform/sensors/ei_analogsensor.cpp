@@ -59,7 +59,7 @@ static float analog_data[ANALOG_AXIS_SAMPLED];
 
 bool ei_analog_sensor_init(void)
 {
-    adc1_config_width(width);
+    adc1_config_width(ADC_WIDTH_BIT_12);
     ei_add_sensor_to_fusion_list(analog_sensor);
 
     return true;
@@ -67,7 +67,7 @@ bool ei_analog_sensor_init(void)
 
 float *ei_fusion_analog_sensor_read_data(int n_samples)
 {
-    analog_data[0] = adc1_get_raw((adc1_channel_t)channel);
+    analog_data[0] = adc1_get_raw(ADC1_CHANNEL_0);
 
     return analog_data;
 }

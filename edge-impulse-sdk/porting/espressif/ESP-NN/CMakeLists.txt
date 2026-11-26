@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(c_srcs
+set(srcs
     "src/activation_functions/esp_nn_relu_ansi.c"
     "src/basic_math/esp_nn_add_ansi.c"
     "src/basic_math/esp_nn_mul_ansi.c"
@@ -12,10 +12,12 @@ set(c_srcs
     "src/softmax/esp_nn_softmax_ansi.c"
     "src/softmax/esp_nn_softmax_opt.c"
     "src/pooling/esp_nn_avg_pool_ansi.c"
-    "src/pooling/esp_nn_max_pool_ansi.c")
+    "src/pooling/esp_nn_max_pool_ansi.c"
+)
 
-if(CONFIG_IDF_TARGET_ESP32S3)
-    set(s3_srcs
+# Incluir archivos optimizados de ESP32-S3
+if(NOT DEFINED IDF_TARGET OR IDF_TARGET STREQUAL "esp32s3" OR CONFIG_IDF_TARGET_ESP32S3)
+    list(APPEND srcs
         "src/common/esp_nn_common_functions_esp32s3.S"
         "src/common/esp_nn_multiply_by_quantized_mult_esp32s3.S"
         "src/common/esp_nn_multiply_by_quantized_mult_ver1_esp32s3.S"
@@ -37,21 +39,30 @@ if(CONFIG_IDF_TARGET_ESP32S3)
         "src/convolution/esp_nn_depthwise_conv_s16_mult8_esp32s3.S"
         "src/fully_connected/esp_nn_fully_connected_s8_esp32s3.S"
         "src/pooling/esp_nn_max_pool_s8_esp32s3.S"
-        "src/pooling/esp_nn_avg_pool_s8_esp32s3.S")
+        "src/pooling/esp_nn_avg_pool_s8_esp32s3.S"
+    )
 endif()
 
-if(CONFIG_IDF_TARGET_ESP32P4)
-    set(p4_srcs
-        "src/convolution/esp_nn_conv_esp32p4.c")
+if(IDF_TARGET STREQUAL "esp32p4" OR CONFIG_IDF_TARGET_ESP32P4)
+    list(APPEND srcs
+        "src/convolution/esp_nn_conv_esp32p4.c"
+    )
 endif()
 
-idf_component_register(SRCS "${c_srcs}"
-                            "${s3_srcs}"
-                            "${p4_srcs}"
-                       INCLUDE_DIRS "include" "src/common")
+idf_component_register(
+    SRCS ${srcs}
+    INCLUDE_DIRS "include" "src/common"
+    PRIV_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}"
+)
 
-if(CONFIG_IDF_TARGET_ESP32S3)
+# Pasar flags de compilación al componente registrado
+target_compile_definitions(${COMPONENT_LIB} PUBLIC
+    EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN=1
+    EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN_S3=1
+)
+
+if(NOT DEFINED IDF_TARGET OR IDF_TARGET STREQUAL "esp32s3" OR CONFIG_IDF_TARGET_ESP32S3)
     target_compile_options(${COMPONENT_LIB} PRIVATE -mlongcalls -fno-unroll-loops -O2 -Wno-unused-function)
 else()
-    target_compile_options(${COMPONENT_LIB} PRIVATE  -O2 -Wno-unused-function)
+    target_compile_options(${COMPONENT_LIB} PRIVATE -O2 -Wno-unused-function)
 endif()
