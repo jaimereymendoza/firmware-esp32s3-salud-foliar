@@ -41,3 +41,7 @@
 /copy-sdk.sh
 create-arduino-library.sh
 
+# Archivos de compilación
+build/
+managed_components/
+sdkconfig.old

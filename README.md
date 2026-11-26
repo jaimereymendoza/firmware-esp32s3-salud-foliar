@@ -1,51 +1,157 @@
-# Edge Impulse firmware for Espressif ESP32
+# Firmware Edge Impulse para ESP32-S3-N16R8 con cámara OV3660
 
-Edge Impulse enables developers to create the next generation of intelligent device solutions with embedded Machine Learning. This repository contains the Edge Impulse firmware for the Espressif ESP32 based development boards, specifically ESP-EYE (ESP32) and FireBeetle Board (ESP32). These devices support Edge Impulse device features, including ingestion and inferencing.
+Firmware para conectar una placa **ESP32-S3-N16R8** con cámara **OV3660** a **Edge Impulse Studio** como dispositivo de adquisición de datos. Con él se ve la vista previa de la cámara en vivo y se capturan imágenes directamente al proyecto de Edge Impulse.
 
-**Note: Do you just want to use this development board with Edge Impulse? No need to build this firmware. See the instructions [here](https://docs.edgeimpulse.com/docs/espressif-esp32) for a prebuilt firmware and instructions. Or, you can use the [data forwarder](https://docs.edgeimpulse.com/docs/cli-data-forwarder) to capture data from any sensor.**
+Forma parte del proyecto *Diagnóstico de salud foliar mediante TinyML en el Edge* (clasificación de hojas sanas y enfermas).
 
-## Requirements
+- **Autor:** Jaime Rey Mendoza, Ingeniería en Sistemas Computacionales en Hardware, Facultad de Ingeniería, UACH
+- **Basado en:** el firmware oficial [edgeimpulse/firmware-espressif-esp32](https://github.com/edgeimpulse/firmware-espressif-esp32), que está pensado para ESP-EYE y FireBeetle (ESP32 de primera generación). Este repositorio lo adapta al ESP32-S3.
+
+---
+
+## 1. Material necesario
 
 ### Hardware
 
-- Espressif ESP32 based development boards, preferably ESP-EYE (ESP32) and FireBeetle Board (ESP32). Using with other boards is possible, but code modifications is needed. For more on that read **Using with other ESP32 boards**.
+| Elemento | Detalle |
+| --- | --- |
+| Placa | ESP32-S3-N16R8 (16 MB de flash, 8 MB de PSRAM octal) |
+| Cámara | OV3660 (conector tipo ESP32-S3-EYE) |
+| Cable | USB-C **de datos** conectado al puerto USB-UART de la placa (chip CH343) |
+| Computadora | Probado en Windows |
 
-### Tools
-Install ESP IDF v5.1.1, following the instructions for your OS from [this page](https://docs.espressif.com/projects/esp-idf/en/v5.1.1/esp32/get-started/index.html#installation-step-by-step). You need this exact version - future versions might work, but not tested.
+### Software
 
-### Building the application
-Then from the firmware folder execute:
+| Programa | Versión probada | Para qué sirve |
+| --- | --- | --- |
+| [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/v5.3.6/esp32s3/get-started/windows-setup.html) | 5.3.6 | Compilar y grabar el firmware |
+| [Node.js](https://nodejs.org/) | LTS | Necesario para la CLI de Edge Impulse |
+| [Edge Impulse CLI](https://docs.edgeimpulse.com/docs/tools/edge-impulse-cli/cli-installation) | Última | Conectar la placa con Edge Impulse Studio (`edge-impulse-daemon`) |
+| Driver CH343 | — | Solo si Windows no reconoce la placa como puerto COM |
+| Cuenta de [Edge Impulse](https://studio.edgeimpulse.com/) | — | Para recibir las imágenes |
+
+Instalación de la CLI de Edge Impulse (después de instalar Node.js), en una terminal:
+
 ```bash
-get_idf
-clear && idf.py build
+npm install -g edge-impulse-cli --force
 ```
-```get_idf``` is an alias for export.sh script that sets up ESP IDF environment variables. Read more about it [here](https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32/get-started/index.html#step-4-set-up-the-environment-variables).
 
-### Flash
+---
 
-Connect the ESP32 board to your computer.
+## 2. Conexión de la cámara (mapa de pines)
 
-Run:
+El mapa de pines corresponde al esquema de la ESP32-S3-EYE y ya está definido en el código (`ei_camera.h`, modelo `CAMERA_MODEL_ESP32S3_CUSTOM`). No hay que cambiar nada si la cámara usa estos pines:
+
+| Señal | GPIO | Señal | GPIO |
+| --- | --- | --- | --- |
+| XCLK | 15 | VSYNC | 6 |
+| SIOD (SDA) | 4 | HREF | 7 |
+| SIOC (SCL) | 5 | PCLK | 13 |
+| D0 (Y2) | 11 | D4 (Y6) | 12 |
+| D1 (Y3) | 9 | D5 (Y7) | 18 |
+| D2 (Y4) | 8 | D6 (Y8) | 17 |
+| D3 (Y5) | 10 | D7 (Y9) | 16 |
+| PWDN | Sin usar (-1) | RESET | Sin usar (-1) |
+
+La cámara responde en la dirección I2C (SCCB) **0x3C**.
+
+---
+
+## 3. Compilar y grabar el firmware
+
+La configuración de la placa (particiones, flash de 16 MB, PSRAM octal, etc.) ya viene incluida en los archivos `sdkconfig` y `partitions.csv`, así que **no hace falta abrir `menuconfig`**.
+
+1. Descarga este repositorio: botón verde **Code → Download ZIP** y descomprímelo, o usa `git clone`.
+   > Recomendación: ponlo en una ruta corta y sin espacios ni acentos, por ejemplo `C:\esp\firmware-esp32s3`. ESP-IDF falla con rutas largas o con caracteres especiales.
+2. Abre la terminal **ESP-IDF 5.3 CMD** (o PowerShell de ESP-IDF), que se instala junto con ESP-IDF.
+3. Entra a la carpeta del proyecto:
    ```bash
-   idf.py -p /dev/ttyUSB0 flash monitor
+   cd C:\esp\firmware-esp32s3
+   ```
+4. Selecciona el chip (solo la primera vez):
+   ```bash
+   idf.py set-target esp32s3
+   ```
+   > Si este comando regenera el `sdkconfig` y se pierden los ajustes, revisa la sección 6.
+5. Compila:
+   ```bash
+   idf.py build
+   ```
+6. Conecta la placa y averigua su puerto en el **Administrador de dispositivos → Puertos (COM y LPT)**. En mi caso fue `COM9`.
+7. Graba la placa (cambia `COM9` por tu puerto):
+   ```bash
+   idf.py -p COM9 flash
    ```
 
-Where ```/dev/ttyUSB0``` needs to be changed to actual port where ESP32 is connected on your system.
+---
 
-### Serial connection
+## 4. Conectar la placa con Edge Impulse Studio
 
-Use screen, minicom or Serial monitor in Arduino IDE to set up a serial connection over USB. The following UART settings are used: 115200 baud, 8N1.
+1. **Cierra cualquier monitor serie** que tengas abierto (si usaste `idf.py monitor`, sal con `Ctrl + ]`). Mientras esté abierto ocupa el puerto y el daemon no puede conectarse.
+2. En una terminal normal ejecuta:
+   ```bash
+   edge-impulse-daemon --clean
+   ```
+3. Inicia sesión con tu cuenta de Edge Impulse y elige el proyecto donde se guardarán las imágenes.
+4. Ponle un nombre al dispositivo cuando lo pida.
+5. En Edge Impulse Studio, en **Devices**, la placa debe aparecer con un punto verde.
 
-### Using with other ESP32 boards
+## 5. Capturar imágenes
 
-ESP32 is a very popular chip both in a community projects and in industry, due to its high performance, low price and large amount of documentation/support available. There are other camera enabled development boards based on ESP32, which can use Edge Impulse firmware after applying certain changes, e.g.
+1. En Studio entra a **Data acquisition**.
+2. En *Device* elige la placa y en *Sensor* elige **Camera (320x240)**.
+3. Debe verse la vista previa en vivo de la cámara.
+4. Escribe la etiqueta (por ejemplo `sana` o `enferma`) y pulsa **Start sampling**.
+5. La imagen aparece en la lista de datos del proyecto.
 
-- AI-Thinker ESP-CAM
-- M5STACK ESP32 PSRAM Timer Camera X (OV3660)
-- M5STACK ESP32 Camera Module Development Board (OV2640)
+> La vista previa va algo lenta porque la velocidad del puerto serie está fijada en 115200 baudios (ver sección 7). La captura de imágenes funciona bien.
 
-The pins used for camera connection on different development boards are not the same, therefore you will need to change the #define [here](https://github.com/edgeimpulse/firmware-espressif-esp32/blob/main/edge-impulse/ingestion-sdk-platform/sensors/ei_camera.h#L29) to fit your development board, compile and flash the firmware. Specifically for AI-Thinker ESP-CAM, since this board needs an external USB to TTL Serial Cable to upload the code/communicate with the board, the data transfer baud rate must be changed to 115200 [here](https://github.com/edgeimpulse/firmware-espressif-esp32/blob/main/edge-impulse/ingestion-sdk-platform/espressif_esp32/ei_device_espressif_esp32.h#35).
+---
 
-The analog sensor and LIS3DH accelerometer can be used on any other development board without changes, as long as the interface pins are not changed. If I2C/ADC pins that accelerometer/analog sensor are connected to are different, from described in Sensors available section, you will need to [change the values](https://github.com/AIWintermuteAI/LIS3DHTR_ESP-IDF/blob/641bda8c3e4b706a2365fe87dd4d925f96ea3f8c/src/include/LIS3DHTR.h#L31) in LIS3DHTR component for ESP32, compile and flash it to your board.
+## 6. Ajustes de configuración que se cambiaron
 
-Additionally, since Edge Impulse firmware is open-source and available to public, if you have made modifications/added new sensors capabilities, we encourage you to make a PR in firmware repository!
+Si por algún motivo el `sdkconfig` se regenera, hay que volver a poner estos valores con `idf.py menuconfig`:
+
+| Parámetro | Valor necesario |
+| --- | --- |
+| Tabla de particiones | CSV personalizada: `partitions.csv` |
+| Tamaño de flash | 16 MB |
+| PSRAM | Modo Octal, 80 MHz |
+| Nivel de log por defecto | Error |
+| Watchdog de tareas al arranque (`ESP_TASK_WDT_INIT`) | Desactivado |
+| Pila de la tarea principal (`ESP_MAIN_TASK_STACK_SIZE`) | 12288 |
+| Consola secundaria USB-Serial-JTAG | Sin consola secundaria |
+
+Por qué importan: los mensajes de log y del watchdog salen por el mismo puerto serie que usa Edge Impulse, y si aparecen, el daemon recibe datos corruptos (`Timeout when waiting for OK`, `Received snapshot is not a RAW or JPEG image`).
+
+### Cambios en el código respecto al firmware original
+
+| Archivo | Cambio |
+| --- | --- |
+| `CMakeLists.txt` (raíz) | Activa ESP-NN para ESP32-S3 (`EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN_S3`) y ESP-DSP |
+| `edge-impulse-sdk/porting/espressif/ESP-NN/CMakeLists.txt` | Incluye los archivos en ensamblador del S3 |
+| `main/CMakeLists.txt` | Rutas relativas y componentes requeridos (cámara, GPIO, UART, ADC, NVS, temporizador) |
+| `main/main.cpp` | LED del GPIO 22 al GPIO 2 (el 22 no existe en el S3) |
+| `ei_device_espressif_esp32.cpp` | Mismo cambio de LED; `UART_NUM_0` y `portTICK_PERIOD_MS` |
+| `ei_device_espressif_esp32.h` | `MAX_BAUD` de 1000000 a 115200 |
+| `ei_analogsensor.cpp` | ADC1 configurado de forma explícita (12 bits, canal 0) |
+| `ei_camera.h` | Nuevo modelo `CAMERA_MODEL_ESP32S3_CUSTOM` con el mapa de pines |
+| `firmware-sdk/ei_image_lib.cpp` | Corrección de un error de memoria: el búfer de imagen se liberaba antes de usarse y la captura fallaba con `got 23` |
+
+---
+
+## 7. Problemas comunes
+
+| Síntoma | Solución |
+| --- | --- |
+| La placa se reinicia una y otra vez | La configuración de particiones/flash/PSRAM no se aplicó. Revisa la sección 6 |
+| El daemon no encuentra la placa | Cierra el monitor serie y revisa que el cable sea de datos y el puerto COM sea el correcto |
+| `Timeout when waiting for OK` | Nivel de log o watchdog activados. Revisa la sección 6 |
+| La vista previa se congela | Deja `MAX_BAUD` en 115200 en `ei_device_espressif_esp32.h` |
+| Aparece `i2c_set_pin(988): scl gpio number error` o "Inertial sensor initialization failed" | **No es un error de la cámara**: el firmware intenta iniciar un acelerómetro que esta placa no tiene. Se puede ignorar |
+
+---
+
+## 8. Licencia
+
+Este proyecto se basa en el firmware de Edge Impulse y conserva su licencia original (ver archivo `LICENSE`).
